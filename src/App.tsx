@@ -5911,6 +5911,8 @@ const App = () => {
                   display: "flex",
                   flexDirection: "column",
                   gap: "10px",
+                  overflowY: "auto", // ✅ TAMBAHKAN INI
+                  overflowX: "hidden", // ✅ TAMBAHKAN INI
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
