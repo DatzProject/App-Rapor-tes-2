@@ -47,7 +47,7 @@ interface KehadiranData {
 }
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbzGW6asRM0WC2eYoGcV9I1vl4QvkLFkQUszCd0tk0YwqMgsON_d0fOiwmLW9glAUcgI/exec";
+  "https://script.google.com/macros/s/AKfycbwfcasmBjIozUvaN_xOQJjtnGZ70roUxSfP8c-N5PAExIx9m7_br9glFGcAQUQ3QUaL/exec";
 
 const throttle = (func: Function, delay: number) => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -468,20 +468,12 @@ const InputNilai = () => {
       });
     });
 
-    // TAMBAHAN: Logging untuk debug
-    console.log("=== SENDING UPDATE ===");
-    console.log("Sheet:", selectedSheet);
-    console.log("Number of updates:", updates.length);
-    console.log("Updates data:", JSON.stringify(updates, null, 2));
-
     try {
       const requestBody = {
         action: "update_bulk",
         sheetName: selectedSheet,
         updates: updates,
       };
-
-      console.log("Request body:", JSON.stringify(requestBody, null, 2));
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -491,17 +483,12 @@ const InputNilai = () => {
         body: JSON.stringify(requestBody),
       });
 
-      console.log("Response status:", response.status);
-      console.log("Response ok:", response.ok);
-
-      const responseText = await response.text();
-      console.log("Response text:", responseText);
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Parse response untuk cek success
+      const responseText = await response.text();
+
       try {
         const responseJson = JSON.parse(responseText);
         if (responseJson.error) {
@@ -515,6 +502,25 @@ const InputNilai = () => {
 
       alert("All changes saved successfully!");
       setChangedRows(new Set());
+
+      // ✅ TAMBAHKAN KODE INI - Reload data setelah save berhasil
+      setLoading(true);
+      try {
+        const refreshResponse = await fetch(
+          `${endpoint}?sheet=${selectedSheet}`
+        );
+        if (!refreshResponse.ok) {
+          throw new Error("Failed to refresh data");
+        }
+        const refreshedData = await refreshResponse.json();
+        setData(refreshedData);
+      } catch (refreshError) {
+        console.error("Error refreshing data:", refreshError);
+        alert("Data saved but failed to refresh. Please reload the page.");
+      } finally {
+        setLoading(false);
+      }
+      // ✅ AKHIR TAMBAHAN
     } catch (err) {
       console.error("=== ERROR DETAILS ===");
       console.error(err);
