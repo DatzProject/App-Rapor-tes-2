@@ -47,7 +47,7 @@ interface KehadiranData {
 }
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbwfcasmBjIozUvaN_xOQJjtnGZ70roUxSfP8c-N5PAExIx9m7_br9glFGcAQUQ3QUaL/exec";
+  "https://script.google.com/macros/s/AKfycbwHLsiPiOB4EUX5VJSpaBTXJKTq4wUDm3oRHmsvCbIn1IE0NzKuRNQjseLcZB2c07IV/exec";
 
 const throttle = (func: Function, delay: number) => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -2424,8 +2424,10 @@ const RekapNilai = () => {
   const mapelColumns = availableSheets.map((sheet) => sheet.mapel);
 
   const downloadRaporPDF = async (siswa: RekapData) => {
-    // Set loading state
     setDownloadingId(siswa.nama);
+
+    console.log("=== START PDF GENERATION ===");
+    console.log("Siswa:", siswa.nama);
 
     try {
       const doc = new jsPDF();
@@ -2527,12 +2529,13 @@ const RekapNilai = () => {
           capaianText = "-";
         }
 
-        return [
-          index + 1,
-          mapel,
-          nilai !== null ? nilai.toString() : "-",
-          capaianText,
-        ];
+        // ✅ PERBAIKAN: Cek nilai dengan lebih aman
+        let nilaiText = "-";
+        if (nilai !== null && nilai !== undefined) {
+          nilaiText = String(nilai); // Gunakan String() bukan .toString()
+        }
+
+        return [index + 1, mapel, nilaiText, capaianText];
       });
 
       autoTable(doc, {
@@ -2866,8 +2869,20 @@ const RekapNilai = () => {
       // Save PDF
       doc.save(`Rapor_${siswa.nama.replace(/\s+/g, "_")}.pdf`);
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Gagal membuat PDF. Silakan coba lagi.");
+      console.error("=== PDF ERROR DETAILS ===");
+      console.error("Error:", error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : "";
+
+      console.error("Error message:", errorMessage);
+      console.error("Error stack:", errorStack);
+      console.error("Siswa data:", siswa);
+
+      alert(
+        `Gagal membuat PDF untuk ${siswa.nama}\n\nError: ${errorMessage}\n\nCek console untuk detail lengkap.`
+      );
     } finally {
       setDownloadingId(null);
     }
@@ -6151,3 +6166,4 @@ const App = () => {
 };
 
 export default App;
+
