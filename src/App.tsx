@@ -328,7 +328,17 @@ const InputNilai = () => {
           throw new Error("Network response was not ok");
         }
         const jsonData = await response.json();
-        setData(jsonData);
+
+        // ✅ FILTER: Hanya ambil baris yang memiliki nama siswa (Data4 tidak kosong)
+        if (jsonData.length > 0) {
+          const headers = jsonData[0];
+          const filteredData = jsonData.slice(1).filter((row: any) => {
+            return row.Data4 && row.Data4.trim() !== "";
+          });
+          setData([headers, ...filteredData]);
+        } else {
+          setData(jsonData);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
@@ -346,8 +356,20 @@ const InputNilai = () => {
         throw new Error("Failed to reload data");
       }
       const jsonData = await response.json();
-      setData(jsonData);
-      return jsonData; // Return data untuk digunakan langsung
+
+      // ✅ FILTER: Hanya ambil baris yang memiliki nama siswa (Data4 tidak kosong)
+      if (jsonData.length > 0) {
+        const headers = jsonData[0];
+        const filteredData = jsonData.slice(1).filter((row: any) => {
+          return row.Data4 && row.Data4.trim() !== "";
+        });
+        const cleanedData = [headers, ...filteredData];
+        setData(cleanedData);
+        return cleanedData;
+      } else {
+        setData(jsonData);
+        return jsonData;
+      } // Return data untuk digunakan langsung
     } catch (err) {
       console.error("Error reloading data:", err);
       return null;
@@ -512,8 +534,18 @@ const InputNilai = () => {
         if (!refreshResponse.ok) {
           throw new Error("Failed to refresh data");
         }
-        const refreshedData = await refreshResponse.json();
-        setData(refreshedData);
+        const jsonData = await refreshResponse.json();
+
+        // ✅ FILTER: Hanya ambil baris yang memiliki nama siswa
+        if (jsonData.length > 0) {
+          const headers = jsonData[0];
+          const filteredData = jsonData.slice(1).filter((row: any) => {
+            return row.Data4 && row.Data4.trim() !== "";
+          });
+          setData([headers, ...filteredData]);
+        } else {
+          setData(jsonData);
+        }
       } catch (refreshError) {
         console.error("Error refreshing data:", refreshError);
         alert("Data saved but failed to refresh. Please reload the page.");
