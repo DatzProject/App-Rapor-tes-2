@@ -47,7 +47,7 @@ interface KehadiranData {
 }
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbwHLsiPiOB4EUX5VJSpaBTXJKTq4wUDm3oRHmsvCbIn1IE0NzKuRNQjseLcZB2c07IV/exec";
+  "https://script.google.com/macros/s/AKfycbyNbHB6GUV9IYyf9GRz791b3AyHonok9gPXIGHzQu8WgNysFPIL3qwo4uUs1NmjSiSb/exec";
 
 const throttle = (func: Function, delay: number) => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -602,12 +602,14 @@ const InputNilai = () => {
     "Data21",
     "Data22",
     "Data23",
-    "Data24",
-    "Data25",
-    "Data26", // ✅ TAMBAHKAN
-    "Data27", // ✅ TAMBAHKAN
-    "Data28", // ✅ TAMBAHKAN
-    "Data29", // ✅ TAMBAHKAN
+    "Data24", // ✅ TAMPILKAN
+    "Data25", // ✅ TAMPILKAN
+    "Data26",
+    "Data27",
+    "Data28",
+    "Data29",
+    "Data30", // ✅ TAMBAH BARU
+    "Data31", // ✅ TAMBAH BARU
   ];
 
   const displayHeaders = headers.map((header) => data[0][header] || "");
@@ -620,6 +622,8 @@ const InputNilai = () => {
     "Data20",
     "Data21",
     "Data23",
+    "Data24",
+    "Data25",
   ]);
 
   const conditionalHeaders = [
@@ -668,14 +672,21 @@ const InputNilai = () => {
     "Data1",
     "Data2",
     "Data3",
-    "Data26", // ✅ TAMBAHKAN - TP Min
-    "Data27", // ✅ TAMBAHKAN - TP Max
-    "Data28", // ✅ TAMBAHKAN - Nilai Min
-    "Data29", // ✅ TAMBAHKAN - Nilai Max
+    "Data26", // TP Min
+    "Data27", // TP Max
+    "Data28", // Nilai Min
+    "Data29", // Nilai Max
+    "Data30", // ✅ TAMBAH BARU
+    "Data31", // ✅ TAMBAH BARU
   ]);
 
   const visibleHeaders = headers.filter((header, index) => {
-    if (header === "Data24" || header === "Data25") {
+    // Data24 dan Data25 sekarang DITAMPILKAN, tidak di-filter
+    // if (header === "Data24" || header === "Data25") {
+    //   return false;
+    // }
+
+    if (hiddenHeaders.has(header)) {
       return false;
     }
 
@@ -1068,12 +1079,12 @@ const InputNilai = () => {
                         const freshRow = freshData[rowIndex + 1];
                         setSelectedStudentDesc({
                           nama: freshRow.Data4 || "",
-                          descMin: freshRow.Data24 || "Tidak ada deskripsi",
-                          descMax: freshRow.Data25 || "Tidak ada deskripsi",
-                          tpMin: freshRow.Data26 || "-",
-                          tpMax: freshRow.Data27 || "-",
-                          nilaiMin: freshRow.Data28 || "-",
-                          nilaiMax: freshRow.Data29 || "-",
+                          descMin: freshRow.Data26 || "Tidak ada deskripsi",
+                          descMax: freshRow.Data27 || "Tidak ada deskripsi",
+                          tpMin: freshRow.Data28 || "-",
+                          tpMax: freshRow.Data29 || "-",
+                          nilaiMin: freshRow.Data30 || "-",
+                          nilaiMax: freshRow.Data31 || "-",
                         });
                         setShowDescPopup(true);
                       }
@@ -2444,6 +2455,7 @@ const RekapNilai = () => {
       const leftCol = 20;
       const rightCol = 130;
       const leftColTTD = 25;
+      const centerColTTD = 85;
       const rightColTTD = 150;
       let y = 35;
 
@@ -2503,8 +2515,8 @@ const RekapNilai = () => {
 
         return {
           mapel: sheet.mapel,
-          descMin: siswaData?.Data24 || "",
-          descMax: siswaData?.Data25 || "",
+          descMin: siswaData?.Data26 || "",
+          descMax: siswaData?.Data27 || "",
         };
       });
 
@@ -2745,19 +2757,25 @@ const RekapNilai = () => {
 
       additionalY = doc.lastAutoTable.finalY + 10;
 
-      // DATA KEHADIRAN
+      // ===== CEK RUANG UNTUK KETIDAKHADIRAN + TANDA TANGAN =====
       const studentKehadiran = kehadiranData.find(
         (k) => k.Data1 === siswa.nama
       );
 
+      // Hitung perkiraan tinggi yang dibutuhkan:
+      // Ketidakhadiran (header + tabel) ≈ 40px
+      // Tanda Tangan (dengan TTD + Kepsek di bawah) ≈ 130px
+      // Total minimal yang dibutuhkan ≈ 170px
+      const requiredSpace = 170; // ✅ UBAH DARI 90 MENJADI 170
       const remainingSpaceBeforeKehadiran = 297 - additionalY;
-      const estimatedKehadiranHeight = 30;
 
-      if (remainingSpaceBeforeKehadiran < estimatedKehadiranHeight + 60) {
+      // ✅ Jika ruang tidak cukup, pindah ke halaman baru
+      if (remainingSpaceBeforeKehadiran < requiredSpace) {
         doc.addPage();
         additionalY = 20;
       }
 
+      // ===== DATA KEHADIRAN =====
       if (studentKehadiran) {
         doc.setFont("helvetica", "bold");
         doc.text("Ketidakhadiran", leftCol, additionalY);
@@ -2793,51 +2811,41 @@ const RekapNilai = () => {
         additionalY = doc.lastAutoTable.finalY + 15;
       }
 
-      // TANDA TANGAN
-      const remainingSpaceForSignature = 297 - additionalY;
-      if (remainingSpaceForSignature < 50) {
-        doc.addPage();
-        additionalY = 20;
-      }
+      // ===== TANDA TANGAN =====
+      // ✅ Ambil nama orang tua dari DataSiswa
+      const fetchNamaOrtu = async (namaSiswa: string): Promise<string> => {
+        try {
+          const response = await fetch(`${endpoint}?sheet=DataSiswa`);
+          if (!response.ok) return "-";
+          const siswaData = await response.json();
+          const siswaRecord = siswaData
+            .slice(1)
+            .find((row: any) => row.Data1 === namaSiswa);
+          return siswaRecord?.Data5 || "-";
+        } catch (error) {
+          console.log("Error fetching nama ortu:", error);
+          return "-";
+        }
+      };
+
+      const namaOrtu = await fetchNamaOrtu(siswa.nama);
 
       const ttdY = additionalY;
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
 
-      // Kolom Kiri - Kepala Sekolah
-      doc.text("Mengetahui,", leftColTTD, ttdY);
-      doc.text("Kepala Sekolah", leftColTTD, ttdY + 5);
+      // ✅ Tambahkan tanggal di tengah atas
+      const tanggalRapor = schoolData?.tanggalRapor || "23 Desember 2023";
+      doc.text(`Bungeng, ${tanggalRapor}`, 105, ttdY, { align: "center" });
 
-      if (schoolData?.ttdKepsek) {
-        try {
-          doc.addImage(
-            schoolData.ttdKepsek,
-            "PNG",
-            leftColTTD - 4,
-            ttdY + 7,
-            40,
-            20
-          );
-        } catch (error) {
-          console.log("Error adding kepsek signature:", error);
-        }
-      }
+      // ===== KOLOM KIRI - ORANG TUA / WALI =====
+      doc.text("Mengetahui :", leftColTTD, ttdY + 10);
+      doc.text("Orang Tua / Wali,", leftColTTD, ttdY + 15);
+      doc.text(namaOrtu || "_______________", leftColTTD, ttdY + 40);
 
-      doc.text(
-        schoolData?.namaKepsek || "_______________",
-        leftColTTD,
-        ttdY + 30
-      );
-      doc.setFontSize(9);
-      doc.text(
-        `NIP. ${schoolData?.nipKepsek || "_______________"}`,
-        leftColTTD,
-        ttdY + 35
-      );
-
-      // Kolom Kanan - Guru Kelas
+      // ===== KOLOM KANAN ATAS - WALI KELAS =====
       doc.setFontSize(10);
-      doc.text("Wali Kelas,", rightColTTD, ttdY + 5);
+      doc.text("Wali Kelas,", rightColTTD, ttdY + 15);
 
       if (schoolData?.ttdGuru) {
         try {
@@ -2845,7 +2853,7 @@ const RekapNilai = () => {
             schoolData.ttdGuru,
             "PNG",
             rightColTTD - 4,
-            ttdY + 7,
+            ttdY + 17,
             40,
             20
           );
@@ -2854,16 +2862,88 @@ const RekapNilai = () => {
         }
       }
 
+      doc.setFont("helvetica", "bold");
       doc.text(
         schoolData?.namaGuru || "_______________",
         rightColTTD,
-        ttdY + 30
+        ttdY + 40
       );
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.text(
         `NIP. ${schoolData?.nipGuru || "_______________"}`,
         rightColTTD,
-        ttdY + 35
+        ttdY + 45
+      );
+
+      // ===== KOLOM TENGAH BAWAH - KEPALA SEKOLAH =====
+      const kepsekY = ttdY + 55;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Mengetahui,", centerColTTD, kepsekY);
+      doc.text("Kepala Sekolah", centerColTTD, kepsekY + 5);
+
+      if (schoolData?.ttdKepsek) {
+        try {
+          doc.addImage(
+            schoolData.ttdKepsek,
+            "PNG",
+            centerColTTD - 4,
+            kepsekY + 7,
+            40,
+            20
+          );
+        } catch (error) {
+          console.log("Error adding kepsek signature:", error);
+        }
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        schoolData?.namaKepsek || "_______________",
+        centerColTTD,
+        kepsekY + 30
+      );
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(
+        `NIP. ${schoolData?.nipKepsek || "_______________"}`,
+        centerColTTD,
+        kepsekY + 35
+      );
+
+      // ===== KOLOM KANAN - WALI KELAS =====
+      doc.setFontSize(10);
+      doc.text("Wali Kelas,", rightColTTD, ttdY + 15);
+
+      if (schoolData?.ttdGuru) {
+        try {
+          doc.addImage(
+            schoolData.ttdGuru,
+            "PNG",
+            rightColTTD - 4,
+            ttdY + 17,
+            40,
+            20
+          );
+        } catch (error) {
+          console.log("Error adding guru signature:", error);
+        }
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        schoolData?.namaGuru || "_______________",
+        rightColTTD,
+        ttdY + 40
+      );
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(
+        `NIP. ${schoolData?.nipGuru || "_______________"}`,
+        rightColTTD,
+        ttdY + 45
       );
 
       // Save PDF
@@ -6166,4 +6246,3 @@ const App = () => {
 };
 
 export default App;
-
