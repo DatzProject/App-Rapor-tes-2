@@ -2532,15 +2532,15 @@ const RekapNilai = () => {
         y
       );
       doc.text("Semester", rightCol, y);
-      doc.text(": 2", rightCol + 30, y);
+      doc.text(": 1", rightCol + 30, y);
 
       y += 7;
       doc.text("Alamat Sekolah", leftCol, y);
-      doc.text(
-        ": " + (schoolData?.alamatSekolah || "Desa Bungeng, Kecamatan Batang,"),
-        leftCol + 50,
-        y
-      );
+      // ✅ PERBAIKAN: Gabungkan alamat lengkap dalam 1 baris
+      const alamatLengkap = `${
+        schoolData?.alamatSekolah || "Desa Bungeng, Kecamatan Batang"
+      }, ${schoolData?.kabKota || ""}`;
+      doc.text(": " + alamatLengkap, leftCol + 50, y);
       doc.text("Tahun Pelajaran", rightCol, y);
       doc.text(
         ": " + (schoolData?.tahunPelajaran || "2023/2024"),
@@ -2548,13 +2548,7 @@ const RekapNilai = () => {
         y
       );
 
-      y += 7;
-      doc.text("", leftCol, y);
-      doc.text(
-        "  " + (schoolData?.kabKota || "Kabupaten Jeneponto"),
-        leftCol + 50,
-        y
-      );
+      // ✅ HAPUS baris y += 7 berikutnya dan baris kabupaten terpisah
 
       // Fetch deskripsi untuk setiap mapel
       const deskripsiPromises = availableSheets.map(async (sheet) => {
@@ -2647,11 +2641,6 @@ const RekapNilai = () => {
       });
 
       let additionalY = doc.lastAutoTable.finalY + 10;
-
-      // Rata-rata Nilai
-      doc.setFont("helvetica", "bold");
-      doc.text(`Rata-rata Nilai: ${siswa.rataRata}`, leftCol, additionalY);
-      additionalY += 10;
 
       // KOKURIKULER
       try {
@@ -2939,11 +2928,14 @@ const RekapNilai = () => {
       }
 
       doc.setFont("helvetica", "bold");
-      doc.text(
-        schoolData?.namaGuru || "_______________",
-        rightColTTD,
-        ttdY + 40
-      );
+      const namaGuru = schoolData?.namaGuru || "_______________";
+      doc.text(namaGuru, rightColTTD, ttdY + 40);
+
+      // ✅ TAMBAHKAN UNDERLINE UNTUK NAMA GURU
+      doc.setLineWidth(0.3);
+      const guruTextWidth = doc.getTextWidth(namaGuru);
+      doc.line(rightColTTD, ttdY + 41, rightColTTD + guruTextWidth, ttdY + 41);
+
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.text(
@@ -2967,7 +2959,7 @@ const RekapNilai = () => {
           doc.addImage(
             schoolData.ttdKepsek,
             "PNG",
-            centerColTTD - 20, // ✅ Dikurangi setengah lebar gambar (40/2) agar center
+            centerColTTD - 20,
             kepsekY + 7,
             40,
             20
@@ -2978,19 +2970,26 @@ const RekapNilai = () => {
       }
 
       doc.setFont("helvetica", "bold");
-      doc.text(
-        schoolData?.namaKepsek || "_______________",
-        centerColTTD,
-        kepsekY + 30,
-        { align: "center" } // ✅ TAMBAHKAN align center
+      const namaKepsek = schoolData?.namaKepsek || "_______________";
+      doc.text(namaKepsek, centerColTTD, kepsekY + 30, { align: "center" });
+
+      // ✅ TAMBAHKAN UNDERLINE UNTUK NAMA KEPSEK
+      doc.setLineWidth(0.3);
+      const kepsekTextWidth = doc.getTextWidth(namaKepsek);
+      doc.line(
+        centerColTTD - kepsekTextWidth / 2,
+        kepsekY + 31,
+        centerColTTD + kepsekTextWidth / 2,
+        kepsekY + 31
       );
+
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.text(
         `NIP. ${schoolData?.nipKepsek || "_______________"}`,
         centerColTTD,
         kepsekY + 35,
-        { align: "center" } // ✅ TAMBAHKAN align center
+        { align: "center" }
       );
       // ===== KOLOM KANAN - WALI KELAS =====
       doc.setFontSize(10);
