@@ -155,7 +155,7 @@ const RekapProvider: React.FC<{ children: React.ReactNode }> = ({
         data.forEach((row: any) => {
           const nama = row.Data4;
           const kelas = row.Data3;
-          const nilai = parseFloat(row.Data23) || null;
+          const nilai = parseFloat(row.Data24) || null;
 
           if (!nama || nama.trim() === "") {
             return;
