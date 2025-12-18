@@ -2475,6 +2475,28 @@ const RekapNilai = () => {
     try {
       const doc = new jsPDF();
 
+      const fetchNISNISN = async (
+        namaSiswa: string
+      ): Promise<{ nis: string; nisn: string }> => {
+        try {
+          const response = await fetch(`${endpoint}?sheet=DataSiswa`);
+          if (!response.ok) return { nis: "-", nisn: "-" };
+          const siswaData = await response.json();
+          const siswaRecord = siswaData
+            .slice(1)
+            .find((row: any) => row.Data1 === namaSiswa);
+          return {
+            nis: siswaRecord?.Data3 || "-",
+            nisn: siswaRecord?.Data4 || "-",
+          };
+        } catch (error) {
+          console.log("Error fetching NIS/NISN:", error);
+          return { nis: "-", nisn: "-" };
+        }
+      };
+
+      const { nis, nisn } = await fetchNISNISN(siswa.nama);
+
       // Header
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
@@ -2487,7 +2509,7 @@ const RekapNilai = () => {
       const leftCol = 20;
       const rightCol = 130;
       const leftColTTD = 25;
-      const centerColTTD = 85;
+      const centerColTTD = 100;
       const rightColTTD = 150;
       let y = 35;
 
@@ -2498,7 +2520,7 @@ const RekapNilai = () => {
 
       y += 7;
       doc.text("NISN/NIS", leftCol, y);
-      doc.text(": -", leftCol + 50, y);
+      doc.text(`: ${nisn} / ${nis}`, leftCol + 50, y);
       doc.text("Fase", rightCol, y);
       doc.text(": C", rightCol + 30, y);
 
@@ -2554,6 +2576,17 @@ const RekapNilai = () => {
 
       const deskripsiData = await Promise.all(deskripsiPromises);
 
+      // Ganti fungsi cleanText yang ada (sekitar baris 2066) dengan ini:
+      const cleanText = (text: string): string => {
+        if (!text) return "";
+
+        // Hapus semua spasi berlebihan (termasuk yang di tengah kata)
+        return text
+          .replace(/\s+/g, " ") // Multiple spaces jadi single space
+          .replace(/\s([.,;:!?])/g, "$1") // Hapus spasi sebelum tanda baca
+          .trim();
+      };
+
       // Tabel Nilai
       y += 10;
       const mapelColumns = availableSheets.map((sheet) => sheet.mapel);
@@ -2563,20 +2596,19 @@ const RekapNilai = () => {
 
         let capaianText = "";
         if (desc?.descMax) {
-          capaianText += desc.descMax;
+          capaianText += cleanText(desc.descMax); // ✅ TAMBAHKAN cleanText()
         }
         if (desc?.descMin) {
           if (capaianText) capaianText += "\n\n";
-          capaianText += desc.descMin;
+          capaianText += cleanText(desc.descMin); // ✅ TAMBAHKAN cleanText()
         }
         if (!capaianText) {
           capaianText = "-";
         }
 
-        // ✅ PERBAIKAN: Cek nilai dengan lebih aman
         let nilaiText = "-";
         if (nilai !== null && nilai !== undefined) {
-          nilaiText = String(nilai); // Gunakan String() bukan .toString()
+          nilaiText = String(nilai);
         }
 
         return [index + 1, mapel, nilaiText, capaianText];
@@ -2597,12 +2629,21 @@ const RekapNilai = () => {
           0: { cellWidth: 15, halign: "center" },
           1: { cellWidth: 50 },
           2: { cellWidth: 25, halign: "center" },
-          3: { cellWidth: 90 },
+          3: {
+            cellWidth: 90,
+            cellPadding: 3, // ✅ TAMBAHKAN
+            overflow: "linebreak", // ✅ TAMBAHKAN
+            valign: "top", // ✅ TAMBAHKAN
+          },
         },
         styles: {
           fontSize: 9,
           cellPadding: 3,
+          overflow: "linebreak", // ✅ TAMBAHKAN
+          cellWidth: "wrap", // ✅ TAMBAHKAN
         },
+        rowPageBreak: "avoid",
+        pageBreak: "auto",
       });
 
       let additionalY = doc.lastAutoTable.finalY + 10;
@@ -2866,9 +2907,12 @@ const RekapNilai = () => {
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
 
-      // ✅ Tambahkan tanggal di tengah atas
+      // ✅ UBAH: Pindahkan tanggal ke atas tanda tangan guru (kolom kanan)
       const tanggalRapor = schoolData?.tanggalRapor || "23 Desember 2023";
-      doc.text(`Bungeng, ${tanggalRapor}`, 105, ttdY, { align: "center" });
+      doc.text(`Bungeng, ${tanggalRapor}`, rightColTTD, ttdY + 10, {
+        // ← TAMBAHKAN + 5 (atau nilai lain)
+        align: "left",
+      }); // ✅ Gunakan rightColTTD dan align left
 
       // ===== KOLOM KIRI - ORANG TUA / WALI =====
       doc.text("Mengetahui :", leftColTTD, ttdY + 10);
@@ -2913,15 +2957,17 @@ const RekapNilai = () => {
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text("Mengetahui,", centerColTTD, kepsekY);
-      doc.text("Kepala Sekolah", centerColTTD, kepsekY + 5);
+      doc.text("Mengetahui,", centerColTTD, kepsekY, { align: "center" });
+      doc.text("Kepala Sekolah", centerColTTD, kepsekY + 5, {
+        align: "center",
+      });
 
       if (schoolData?.ttdKepsek) {
         try {
           doc.addImage(
             schoolData.ttdKepsek,
             "PNG",
-            centerColTTD - 4,
+            centerColTTD - 20, // ✅ Dikurangi setengah lebar gambar (40/2) agar center
             kepsekY + 7,
             40,
             20
@@ -2935,16 +2981,17 @@ const RekapNilai = () => {
       doc.text(
         schoolData?.namaKepsek || "_______________",
         centerColTTD,
-        kepsekY + 30
+        kepsekY + 30,
+        { align: "center" } // ✅ TAMBAHKAN align center
       );
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.text(
         `NIP. ${schoolData?.nipKepsek || "_______________"}`,
         centerColTTD,
-        kepsekY + 35
+        kepsekY + 35,
+        { align: "center" } // ✅ TAMBAHKAN align center
       );
-
       // ===== KOLOM KANAN - WALI KELAS =====
       doc.setFontSize(10);
       doc.text("Wali Kelas,", rightColTTD, ttdY + 15);
